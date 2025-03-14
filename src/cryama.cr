@@ -70,7 +70,7 @@ module Cryama
               Options.new 123, 0.5
         ).to_yaml
       end
-      Log.info { "created #{example_path}" }
+      Log.info { "Created #{example_path}" }
     end
 
     def monitor
@@ -79,10 +79,14 @@ module Cryama
         configs do |path|
           file = File.new path
           if !modification_times.has_key?(path) || modification_times[path] < file.info.modification_time
-            config = Config.from_yaml File.new(path).gets_to_end
-            next if !config.chat.messages.last.content.ends_with? "//"
-            Log.info { "processing #{path.stem}" }
             modification_times[path] = file.info.modification_time
+            config = begin
+              Config.from_yaml File.read path
+            rescue ex : YAML::ParseException
+              Log.warn { ex.message }
+            end
+            next if !config || !config.chat.messages.last.content.ends_with? "//"
+            Log.info { "Processing #{path.stem}" }
           end
         end
         sleep 200.milliseconds
@@ -98,7 +102,7 @@ module Cryama
       end
       create_example if need_example
 
-      Log.info { "watching for *.yml files in #{configs_dir}" }
+      Log.info { "Watching for *.yml files in #{configs_dir}" }
       monitor
     end
   end
