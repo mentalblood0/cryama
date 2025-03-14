@@ -28,8 +28,9 @@ module Cryama
   class Chat
     include YAML::Serializable
     include JSON::Serializable
-    property model : String
-    property options : Cryama::Options | Nil = nil
+
+    getter model : String
+    getter options : Cryama::Options | Nil = nil
     property messages : Array(Message) = [] of Message
 
     @[YAML::Field(ignore: true)]
@@ -41,23 +42,23 @@ module Cryama
 
   class Config
     include YAML::Serializable
-    include JSON::Serializable
-    property address : String
+
+    getter address : String
     property chat : Chat
+    getter end_suffix : String | Nil = nil
+
+    @[YAML::Field(ignore: true)]
+    getter end_suffix_default = "//"
 
     def initialize(@address, @chat)
     end
 
-    def end_suffix
-      "//"
-    end
-
     def ready?
-      chat.messages.last.content.ends_with end_suffix
+      chat.messages.last.content.ends_with?(end_suffix || end_suffix_default)
     end
 
     def unready
-      chat.messages.last.content.chomp end_suffix
+      chat.messages.last.content.chomp(end_suffix || end_suffix_default)
     end
   end
 
@@ -79,7 +80,7 @@ module Cryama
         example.print (
           Config.new "127.0.0.1:11434",
             Chat.new "model name",
-              [Message.new("user", "hello\nnext line"), Message.new("assistant", "hello\nnext line")],
+              [Message.new("user", "hello")],
               Options.new 123, 0.5
         ).to_yaml
       end
@@ -88,7 +89,7 @@ module Cryama
 
     def process(config : Config)
       result = config
-      result.chat.messages << Message.new "assistant", HTTP::Client.post("#{config.address}/api/chat", body: config.to_json).body
+      result.chat.messages << Message.new "assistant", HTTP::Client.post("#{config.address}/api/chat", body: config.chat.to_json).body
       result
     end
 
@@ -104,7 +105,8 @@ module Cryama
             rescue ex : YAML::ParseException
               Log.warn { ex.message }
             end
-            next if !config || !config.chat.messages.last.content.ends_with? "//"
+            next if !config || !config.ready?
+            config.unready
             Log.info { "Processing #{path.stem}" }
             File.write path, process(config).to_yaml
           end
