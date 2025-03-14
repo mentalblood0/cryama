@@ -1,0 +1,13 @@
+name: cryama
+version: 0.1.0
+
+authors:
+  - mentalblood <necheporenko.stepan@yandex.ru>
+
+targets:
+  cryama:
+    main: src/cryama.cr
+
+crystal: '>= 1.15.1'
+
+license: MIT
