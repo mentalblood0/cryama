@@ -68,7 +68,8 @@ module Cryama
     end
 
     def ready?
-      chat.messages.last.content.ends_with?(end_suffix || end_suffix_default)
+      last = chat.messages.last
+      (last.role != "assistant") && last.content.ends_with?(end_suffix || end_suffix_default)
     end
 
     def unready
