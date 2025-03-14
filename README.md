@@ -1,12 +1,15 @@
 # cryama
 
-TODO: Write a description here
+File-based interface to ollama
 
 ## Installation
 
-TODO: Write installation instructions here
+```bash
+shards build --production --release
+```
 
 ## Usage
 
-TODO: Write usage instructions here
-
+```bash
+./bin/crylama
+```

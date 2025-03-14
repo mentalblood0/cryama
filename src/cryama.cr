@@ -8,6 +8,7 @@ module Cryama
   class Message
     include YAML::Serializable
     include JSON::Serializable
+
     property role : String
     property content : String
 
@@ -18,6 +19,7 @@ module Cryama
   class Options
     include YAML::Serializable
     include JSON::Serializable
+
     property seed : UInt32 | Nil = nil
     property temperature : Float32 | Nil = nil
 
@@ -58,7 +60,7 @@ module Cryama
     end
 
     def unready
-      chat.messages.last.content.chomp(end_suffix || end_suffix_default)
+      chat.messages.last.content = chat.messages.last.content.chomp(end_suffix || end_suffix_default)
     end
   end
 
@@ -84,13 +86,12 @@ module Cryama
               Options.new 123, 0.5
         ).to_yaml
       end
-      Log.info { "Created #{example_path}" }
+      Log.info { "Created #{example_path}, to trigger processing add '//' to last message end" }
     end
 
     def process(config : Config)
-      result = config
-      result.chat.messages << Message.new "assistant", HTTP::Client.post("#{config.address}/api/chat", body: config.chat.to_json).body
-      result
+      message_json = JSON.parse(HTTP::Client.post("#{config.address}/api/chat", body: config.chat.to_json).body)["message"]
+      config.chat.messages << Message.new message_json["role"].as_s, message_json["content"].as_s
     end
 
     def monitor
@@ -108,7 +109,8 @@ module Cryama
             next if !config || !config.ready?
             config.unready
             Log.info { "Processing #{path.stem}" }
-            File.write path, process(config).to_yaml
+            process config
+            File.write path, config.to_yaml
           end
         end
         sleep 200.milliseconds
@@ -124,7 +126,7 @@ module Cryama
       end
       create_example if need_example
 
-      Log.info { "Watching for *.yml files in #{configs_dir}" }
+      Log.info { "Watching for YAML files in #{configs_dir}" }
       monitor
     end
   end
