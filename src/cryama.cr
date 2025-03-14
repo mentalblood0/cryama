@@ -124,6 +124,7 @@ module Cryama
             Log.info { "Processing #{path.stem}" }
             process config
             File.write path, config.to_yaml
+            Log.info { "Processed #{path.stem}" }
           end
         end
         sleep 200.milliseconds
