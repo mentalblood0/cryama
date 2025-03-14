@@ -6,13 +6,25 @@ require "http/client"
 
 module Cryama
   class Message
-    include YAML::Serializable
     include JSON::Serializable
 
     property role : String
     property content : String
 
     def initialize(@role, @content)
+    end
+
+    def to_yaml(yaml : YAML::Nodes::Builder)
+      yaml.mapping do
+        yaml.scalar role
+        yaml.scalar content
+      end
+    end
+
+    def initialize(ctx : YAML::ParseContext, node : YAML::Nodes::Node)
+      node.raise "Expected one key-value pair mapping, not #{node.kind}" unless node.is_a?(YAML::Nodes::Mapping) && node.nodes.size == 2
+      @role = String.new ctx, node.nodes[0]
+      @content = String.new ctx, node.nodes[1]
     end
   end
 
@@ -81,8 +93,8 @@ module Cryama
       File.open(example_path, "w") do |example|
         example.print (
           Config.new "127.0.0.1:11434",
-            Chat.new "model name",
-              [Message.new("user", "hello")],
+            Chat.new "granite3.1-dense",
+              [Message.new("system", "You are strange but smart crystal bird"), Message.new("user", "hello")],
               Options.new 123, 0.5
         ).to_yaml
       end
@@ -105,8 +117,9 @@ module Cryama
               Config.from_yaml File.read path
             rescue ex : YAML::ParseException
               Log.warn { ex.message }
+              next
             end
-            next if !config || !config.ready?
+            next if !config.ready?
             config.unready
             Log.info { "Processing #{path.stem}" }
             process config
