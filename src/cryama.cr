@@ -2,6 +2,7 @@ require "log"
 require "yaml"
 require "json"
 require "system/user"
+require "http/client"
 
 module Cryama
   class Message
@@ -46,6 +47,18 @@ module Cryama
 
     def initialize(@address, @chat)
     end
+
+    def end_suffix
+      "//"
+    end
+
+    def ready?
+      chat.messages.last.content.ends_with end_suffix
+    end
+
+    def unready
+      chat.messages.last.content.chomp end_suffix
+    end
   end
 
   class App
@@ -66,11 +79,17 @@ module Cryama
         example.print (
           Config.new "127.0.0.1:11434",
             Chat.new "model name",
-              [Message.new("user", "hello\nnext line"), Message.new("model", "hello\nnext line")],
+              [Message.new("user", "hello\nnext line"), Message.new("assistant", "hello\nnext line")],
               Options.new 123, 0.5
         ).to_yaml
       end
       Log.info { "Created #{example_path}" }
+    end
+
+    def process(config : Config)
+      result = config
+      result.chat.messages << Message.new "assistant", HTTP::Client.post("#{config.address}/api/chat", body: config.to_json).body
+      result
     end
 
     def monitor
@@ -87,6 +106,7 @@ module Cryama
             end
             next if !config || !config.chat.messages.last.content.ends_with? "//"
             Log.info { "Processing #{path.stem}" }
+            File.write path, process(config).to_yaml
           end
         end
         sleep 200.milliseconds
