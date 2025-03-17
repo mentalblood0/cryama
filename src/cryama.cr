@@ -78,19 +78,20 @@ module Cryama
   end
 
   class App
-    getter configs_dir : Path
-
-    def initialize(@configs_dir = (Path.new.posix? ? Path.new("~", ".config", "cryama") : Path.new("~", "AppData", "cryama")).expand(home: true))
-    end
+    {% if flag?(:windows) %}
+      @@configs_dir = Path.new("~", "AppData", "podcaster_cr", "config").expand(home: true)
+    {% else %}
+      @@configs_dir = Path.new("~", ".config", "podcaster_cr").expand(home: true)
+    {% end %}
 
     def configs(&)
-      Dir.glob(configs_dir / "*.yml") do |str|
+      Dir.glob(@@configs_dir / "*.yml") do |str|
         yield Path.new str
       end
     end
 
     def create_example
-      example_path = configs_dir / "example.yml"
+      example_path = @@configs_dir / "example.yml"
       File.open(example_path, "w") do |example|
         example.print (
           Config.new "127.0.0.1:11434",
@@ -133,7 +134,7 @@ module Cryama
     end
 
     def run
-      Dir.mkdir_p configs_dir
+      Dir.mkdir_p @@configs_dir
       need_example = true
       configs do
         need_example = false
@@ -141,7 +142,7 @@ module Cryama
       end
       create_example if need_example
 
-      Log.info { "Watching for YAML files in #{configs_dir}" }
+      Log.info { "Watching for YAML files in #{@@configs_dir}" }
       monitor
     end
   end
