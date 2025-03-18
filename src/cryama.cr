@@ -79,9 +79,9 @@ module Cryama
 
   class App
     {% if flag?(:windows) %}
-      @@configs_dir = Path.new("~", "AppData", "podcaster_cr", "config").expand(home: true)
+      @@configs_dir = Path.new("~", "AppData", "cryama", "config").expand(home: true)
     {% else %}
-      @@configs_dir = Path.new("~", ".config", "podcaster_cr").expand(home: true)
+      @@configs_dir = Path.new("~", ".config", "cryama").expand(home: true)
     {% end %}
 
     def configs(&)
