@@ -67,14 +67,14 @@ module Cryama
     property chat : Chat
 
     @[YAML::Field(ignore: true)]
-    @name : String
+    property name : String = ""
 
     def initialize(@name, @address, @chat)
     end
 
-    def self.unprocessed(time : Time, &)
+    def self.unprocessed(time : Time?, &)
       Dir.glob(@@dir/"*.yml")
-        .select { |path| File.info(path).modification_time > time }
+        .select { |path| !time || (File.info(path).modification_time > time) }
         .each do |path|
           result = begin
             Config.from_yaml File.new path
@@ -82,6 +82,7 @@ module Cryama
             Log.warn { ex.message }
             next
           end
+          result.name = Path.new(path).stem
           yield result if result.ready?
         end
     end
@@ -124,14 +125,13 @@ module Cryama
 
   class App
     def process(config : Config)
-      parser = JSON::PullParser.new HTTP::Client.post("#{config.address}/api/chat", body: config.chat.to_json).body
-      config << Message.from_json parser.read_object do |key|
-        break parser.read_raw if key == "message"
-      end
+      response = HTTP::Client.post("#{config.address}/api/chat", body: config.chat.to_json).body
+      message_json = JSON.parse(response)["message"]
+      config << Message.new message_json["role"].to_s, message_json["content"].to_s
     end
 
     def watch
-      last_check = Time.utc
+      last_check = nil
       loop do
         Config.unprocessed last_check do |config|
           config.unready
