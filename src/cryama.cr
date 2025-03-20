@@ -55,95 +55,104 @@ module Cryama
   end
 
   class Config
+    {% if flag?(:windows) %}
+      @@dir = Path.new("~", "AppData", "cryama").expand(home: true)
+    {% else %}
+      @@dir = Path.new("~", ".config", "cryama").expand(home: true)
+    {% end %}
+
     include YAML::Serializable
 
     getter address : String
     property chat : Chat
-    getter end_suffix : String | Nil = nil
 
     @[YAML::Field(ignore: true)]
-    getter end_suffix_default = "//"
+    @name : String
 
-    def initialize(@address, @chat)
+    def initialize(@name, @address, @chat)
+    end
+
+    def self.unprocessed(time : Time, &)
+      Dir.glob(@@dir/"*.yml")
+        .select { |path| File.info(path).modification_time > time }
+        .each do |path|
+          result = begin
+            Config.from_yaml File.new path
+          rescue ex : YAML::ParseException
+            Log.warn { ex.message }
+            next
+          end
+          yield result if result.ready?
+        end
+    end
+
+    def self.exists?
+      Dir.glob @@dir / "*.yml" { return true }
+      false
     end
 
     def ready?
       last = chat.messages.last
-      (last.role != "assistant") && last.content.ends_with?(end_suffix || end_suffix_default)
+      (last.role != "assistant") && last.content.ends_with? "//"
     end
 
     def unready
-      chat.messages.last.content = chat.messages.last.content.chomp(end_suffix || end_suffix_default)
+      chat.messages.last.content = chat.messages.last.content.chomp "//"
+    end
+
+    def <<(message : Message)
+      @chat.messages << message
+    end
+
+    def save
+      Dir.mkdir_p @@dir
+      File.write @@dir / (@name + ".yml"), self.to_yaml
+    end
+
+    def self.example
+      Config.new "example",
+        "127.0.0.1:11434",
+        Chat.new "granite3.1-dense",
+          [Message.new("system", "You are strange but smart crystal bird"), Message.new("user", "hello")],
+          Cryama::Options.new 123, 0.5
+    end
+
+    def self.help
+      "Store configs at #{@@dir}"
     end
   end
 
   class App
-    {% if flag?(:windows) %}
-      @@configs_dir = Path.new("~", "AppData", "cryama").expand(home: true)
-    {% else %}
-      @@configs_dir = Path.new("~", ".config", "cryama").expand(home: true)
-    {% end %}
-
-    def configs(&)
-      Dir.glob(@@configs_dir / "*.yml") do |str|
-        yield Path.new str
-      end
-    end
-
-    def create_example
-      example_path = @@configs_dir / "example.yml"
-      File.open(example_path, "w") do |example|
-        example.print (
-          Config.new "127.0.0.1:11434",
-            Chat.new "granite3.1-dense",
-              [Message.new("system", "You are strange but smart crystal bird"), Message.new("user", "hello")],
-              Options.new 123, 0.5
-        ).to_yaml
-      end
-      Log.info { "Created #{example_path}, to trigger processing add '//' to last message end" }
-    end
-
     def process(config : Config)
-      message_json = JSON.parse(HTTP::Client.post("#{config.address}/api/chat", body: config.chat.to_json).body)["message"]
-      config.chat.messages << Message.new message_json["role"].as_s, message_json["content"].as_s
+      parser = JSON::PullParser.new HTTP::Client.post("#{config.address}/api/chat", body: config.chat.to_json).body
+      config << Message.from_json parser.read_object do |key|
+        break parser.read_raw if key == "message"
+      end
     end
 
-    def monitor
-      modification_times = {} of Path => Time
+    def watch
+      last_check = Time.utc
       loop do
-        configs do |path|
-          file = File.new path
-          if !modification_times.has_key?(path) || modification_times[path] < file.info.modification_time
-            modification_times[path] = file.info.modification_time
-            config = begin
-              Config.from_yaml File.read path
-            rescue ex : YAML::ParseException
-              Log.warn { ex.message }
-              next
-            end
-            next if !config.ready?
-            config.unready
-            Log.info { "Processing #{path.stem}" }
-            process config
-            File.write path, config.to_yaml
-            Log.info { "Processed #{path.stem}" }
-          end
+        Config.unprocessed last_check do |config|
+          config.unready
+          Log.info { "Processing #{config.name}" }
+          process config
+          config.save
+          Log.info { "Processed #{config.name}" }
         end
+        last_check = Time.utc
         sleep 200.milliseconds
       end
     end
 
     def run
-      Dir.mkdir_p @@configs_dir
-      need_example = true
-      configs do
-        need_example = false
-        break
+      if !Config.exists?
+        Config.example.save
+        puts "#{Config.help}. Created example config, to trigger processing add \"//\" to last message end"
+      else
+        puts Config.help
       end
-      create_example if need_example
-
-      Log.info { "Watching for YAML files in #{@@configs_dir}" }
-      monitor
+      watch
     end
   end
 end
