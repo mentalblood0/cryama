@@ -107,7 +107,20 @@ module Cryama
 
     def save
       Dir.mkdir_p @@dir
-      File.write @@dir / (@name + ".yml"), to_yaml
+      path = @@dir / (@name + ".yml")
+      File.open(path, "w") do |file|
+        file = File.new path
+        new_content = to_yaml
+        i = 0
+        file.each_byte do |old_byte|
+          break if old_byte != new_content.byte_at? i
+          i += 1
+        end
+        puts i
+        diff = new_content.byte_slice(i, new_content.bytesize).to_slice
+        puts diff
+        file.write diff
+      end
     end
 
     def self.example
