@@ -108,18 +108,15 @@ module Cryama
     def save
       Dir.mkdir_p @@dir
       path = @@dir / (@name + ".yml")
-      File.open(path, "w") do |file|
-        file = File.new path
+      File.open(path, "rb+") do |file|
         new_content = to_yaml
         i = 0
         file.each_byte do |old_byte|
           break if old_byte != new_content.byte_at? i
           i += 1
         end
-        puts i
-        diff = new_content.byte_slice(i, new_content.bytesize).to_slice
-        puts diff
-        file.write diff
+        file.seek(-1, IO::Seek::Current)
+        file.write new_content.byte_slice(file.pos, new_content.bytesize).to_slice
       end
     end
 
@@ -159,8 +156,8 @@ module Cryama
     end
 
     def run
+      Config.example.save
       if !Config.exists?
-        Config.example.save
         puts "#{Config.help}. Created example config, to trigger processing add \"//\" to last message end"
       else
         puts Config.help
