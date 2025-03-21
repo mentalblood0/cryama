@@ -156,8 +156,8 @@ module Cryama
     end
 
     def run
-      Config.example.save
       if !Config.exists?
+        Config.example.save
         puts "#{Config.help}. Created example config, to trigger processing add \"//\" to last message end"
       else
         puts Config.help
