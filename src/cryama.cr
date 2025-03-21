@@ -48,7 +48,7 @@ module Cryama
     property messages : Array(Message) = [] of Message
 
     @[YAML::Field(ignore: true)]
-    getter stream = false
+    @stream = false
 
     def initialize(@model, @messages, @options = nil)
     end
@@ -107,7 +107,7 @@ module Cryama
 
     def save
       Dir.mkdir_p @@dir
-      File.write @@dir / (@name + ".yml"), self.to_yaml
+      File.write @@dir / (@name + ".yml"), to_yaml
     end
 
     def self.example
