@@ -74,6 +74,7 @@ module Cryama
 
     def self.unprocessed(time : Time?, &)
       Dir.glob(@@dir/"*.yml")
+        .select { |path| !Path.new(path).stem.includes? '.' }
         .select { |path| !time || (File.info(path).modification_time > time) }
         .each do |path|
           result = begin
