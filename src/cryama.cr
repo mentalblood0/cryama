@@ -147,7 +147,12 @@ module Cryama
         Config.unprocessed last_check do |config|
           config.unready
           Log.info { "Processing #{config.name}" }
-          process config
+          begin
+            process config
+          rescue ex
+            Log.warn { ex.message }
+            next
+          end
           config.save
           Log.info { "Processed #{config.name}" }
         end
