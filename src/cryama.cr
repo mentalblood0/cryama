@@ -144,6 +144,7 @@ module Cryama
     def watch
       last_check = nil
       loop do
+        this_check = Time.utc
         Config.unprocessed last_check do |config|
           config.unready
           Log.info { "Processing #{config.name}" }
@@ -156,7 +157,7 @@ module Cryama
           config.save
           Log.info { "Processed #{config.name}" }
         end
-        last_check = Time.utc
+        last_check = this_check
         sleep 200.milliseconds
       end
     end
