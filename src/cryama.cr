@@ -100,6 +100,7 @@ module Cryama
     end
 
     def ready?
+      return false if chat.messages.size == 0
       last = chat.messages.last
       (last.role != "assistant") && last.content.ends_with? "//"
     end
