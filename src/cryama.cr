@@ -83,7 +83,7 @@ module Cryama
           result = begin
             Config.from_yaml File.new path
           rescue ex : YAML::ParseException
-            Log.warn { ex.message }
+            Log.warn { "#{path.stem}: #{ex.message}" }
             next
           ensure
             @@processed[path] = Time.utc
