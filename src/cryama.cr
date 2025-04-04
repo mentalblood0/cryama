@@ -76,7 +76,8 @@ module Cryama
 
     def self.unprocessed(&)
       Dir.glob(@@dir / "*.yml")
-        .select { |path| !Path.new(path).stem.includes? '.' }
+        .map { |path_str| Path.new path_str }
+        .select { |path| !path.stem.includes? '.' }
         .select { |path| !@@processed.has_key?(path) || (File.info(path).modification_time > @@processed[path]) }
         .each do |path|
           result = begin
@@ -84,14 +85,12 @@ module Cryama
           rescue ex : YAML::ParseException
             Log.warn { ex.message }
             next
+          ensure
+            @@processed[path] = Time.utc
           end
           result.name = Path.new(path).stem
           yield result if result.ready?
         end
-    end
-
-    def mark_processed
-      @@processed[@@dir / (name + ".yml")] = Time.utc
     end
 
     def self.exists?
@@ -155,7 +154,6 @@ module Cryama
           Log.info { "Processing #{config.name}" }
           begin
             process config
-            config.mark_processed
           rescue ex
             Log.warn { ex.message }
             next
