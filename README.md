@@ -1,4 +1,4 @@
-# cryama
+# 🪸 cryama
 
 File-based interface to ollama
 
