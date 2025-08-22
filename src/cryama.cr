@@ -61,6 +61,8 @@ module Cryama
       @@dir = Path.new("~", ".config", "cryama").expand(home: true)
     {% end %}
 
+    @@processed = {} of Path => Time
+
     include YAML::Serializable
 
     getter address : String
@@ -73,16 +75,19 @@ module Cryama
     def initialize(@name, @address, @wipe, @chat)
     end
 
-    def self.unprocessed(time : Time?, &)
-      Dir.glob(@@dir/"*.yml")
-        .select { |path| !Path.new(path).stem.includes? '.' }
-        .select { |path| !time || (File.info(path).modification_time > time) }
+    def self.unprocessed(&)
+      Dir.glob(@@dir / "*.yml")
+        .map { |path_str| Path.new path_str }
+        .select { |path| !path.stem.includes? '.' }
+        .select { |path| !@@processed.has_key?(path) || (File.info(path).modification_time > @@processed[path]) }
         .each do |path|
           result = begin
             Config.from_yaml File.new path
           rescue ex : YAML::ParseException
-            Log.warn { ex.message }
+            Log.warn { "#{path.stem}: #{ex.message}" }
             next
+          ensure
+            @@processed[path] = Time.utc
           end
           result.name = Path.new(path).stem
           yield result if result.ready?
@@ -95,6 +100,7 @@ module Cryama
     end
 
     def ready?
+      return false if chat.messages.size == 0
       last = chat.messages.last
       (last.role != "assistant") && last.content.ends_with? "//"
     end
@@ -145,9 +151,8 @@ module Cryama
     end
 
     def watch
-      last_check = nil
       loop do
-        Config.unprocessed last_check do |config|
+        Config.unprocessed do |config|
           config.unready
           Log.info { "Processing #{config.name}" }
           begin
@@ -159,7 +164,6 @@ module Cryama
           config.save
           Log.info { "Processed #{config.name}" }
         end
-        last_check = Time.utc
         sleep 200.milliseconds
       end
     end

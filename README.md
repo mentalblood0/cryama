@@ -1,4 +1,4 @@
-# cryama
+# 🪸 cryama
 
 File-based interface to ollama
 
@@ -11,5 +11,5 @@ shards build --production --release
 ## Usage
 
 ```bash
-./bin/crylama
+./bin/cryama
 ```
