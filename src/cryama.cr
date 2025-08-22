@@ -64,12 +64,13 @@ module Cryama
     include YAML::Serializable
 
     getter address : String
+    getter wipe : Array(String) = [] of String
     property chat : Chat
 
     @[YAML::Field(ignore: true)]
     property name : String = ""
 
-    def initialize(@name, @address, @chat)
+    def initialize(@name, @address, @wipe, @chat)
     end
 
     def self.unprocessed(time : Time?, &)
@@ -103,6 +104,7 @@ module Cryama
     end
 
     def <<(message : Message)
+      @wipe.each { |tag| message.content = message.content.gsub /\n*<#{tag}>(?:.|\n)*?<\/#{tag}>\n*/, "" }
       @chat.messages << message
     end
 
@@ -124,6 +126,7 @@ module Cryama
     def self.example
       Config.new "example",
         "127.0.0.1:11434",
+        ["think"],
         Chat.new "granite3.1-dense",
           [Message.new("system", "You are strange but smart crystal bird"), Message.new("user", "hello")],
           Cryama::Options.new 123, 0.5
