@@ -117,15 +117,19 @@ module Cryama
     def save
       Dir.mkdir_p @@dir
       path = @@dir / (@name + ".yml")
-      File.open(path, "rb+") do |file|
-        new_content = to_yaml
-        i = 0
-        file.each_byte do |old_byte|
-          break if old_byte != new_content.byte_at? i
-          i += 1
+      if File.exists? path
+        File.open(path, "rb+") do |file|
+          new_content = to_yaml
+          i = 0
+          file.each_byte do |old_byte|
+            break if old_byte != new_content.byte_at? i
+            i += 1
+          end
+          file.seek(-1, IO::Seek::Current)
+          file.write new_content.byte_slice(file.pos, new_content.bytesize).to_slice
         end
-        file.seek(-1, IO::Seek::Current)
-        file.write new_content.byte_slice(file.pos, new_content.bytesize).to_slice
+      else
+        File.write path, to_yaml
       end
     end
 
