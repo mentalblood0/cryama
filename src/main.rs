@@ -1,3 +1,4 @@
+use hyper::{Client, Uri};
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
@@ -6,6 +7,7 @@ use std::path::PathBuf;
 use std::process::exit;
 use std::thread::sleep;
 use std::time::{Duration, SystemTime};
+use tokio::runtime::Runtime;
 
 #[derive(Debug, Clone)]
 struct Message {
@@ -67,20 +69,40 @@ fn process_config(config: &Config) -> Result<Config, String> {
     let request_body = serde_json::to_string(&config.chat)
         .map_err(|error| format!("Can not form request body: {}", error))?;
     dbg!(&request_body);
-    let response = attohttpc::post(format!("http://{}/api/chat", config.address).as_str())
-        .header("Content-Type", "text/json")
-        .text(request_body)
-        .send()
-        .map_err(|error| format!("Can not send request: {}", error))?;
-    if !response.is_success() {
-        return Err(format!(
-            "Invalid response status code: {}",
-            response.status()
-        ));
-    }
-    let response_body = response
-        .text()
-        .map_err(|error| format!("Can not get body of response: {}", error))?;
+
+    let async_runtime =
+        Runtime::new().map_err(|error| format!("Can not create async runtime: {}", error))?;
+    let response_body = async_runtime.block_on(async {
+        let client = Client::new();
+
+        let uri = format!("http://{}/api/chat", config.address)
+            .as_str()
+            .parse::<Uri>()
+            .map_err(|error| format!("Can not form correct URI: {}", error))?;
+        let request = hyper::Request::builder()
+            .method(hyper::Method::POST)
+            .uri(uri)
+            .header("Content-Type", "application/json")
+            .body(hyper::Body::from(request_body))
+            .map_err(|error| format!("Can not attach body: {}", error))?;
+
+        let response = client
+            .request(request)
+            .await
+            .map_err(|error| format!("Can not send request: {}", error))?;
+        let status = response.status();
+        if !status.is_success() {
+            return Err(format!("Invalid response status code: {}", status));
+        }
+
+        let response_body = hyper::body::to_bytes(response.into_body())
+            .await
+            .map_err(|error| format!("Can not get body of response: {}", error))?;
+        let response_body_text = String::from_utf8(response_body.to_vec())
+            .map_err(|error| format!("Can not parse body of response as UTF-8 text: {}", error))?;
+        Ok(response_body_text)
+    })?;
+
     dbg!(&response_body);
     let mut new_message: Message = serde_json::from_str(response_body.as_str())
         .map_err(|error| format!("Can not parse response body {:?}: {}", response_body, error))?;
@@ -219,6 +241,13 @@ fn main() {
                         config_path.display(),
                         error
                     );
+                    let new_last_processed_time = SystemTime::now();
+                    config_path_to_last_processed_time
+                        .entry(config_path)
+                        .and_modify(|last_processed_time| {
+                            *last_processed_time = new_last_processed_time
+                        })
+                        .or_insert(new_last_processed_time);
                     continue;
                 }
             };
