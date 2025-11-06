@@ -163,8 +163,37 @@ fn main() {
                     continue;
                 }
             };
+            let last_message = match config.chat.messages.last() {
+                Some(last_message) => last_message,
+                None => continue,
+            };
+            if !(last_message.role == "user" && last_message.content.ends_with("//")) {
+                continue;
+            }
             println!("Processing config from {}...", config_path.display());
-            process_config(&config);
+            let new_config = process_config(&config);
+            let new_config_text = match serde_yaml::to_string(&new_config) {
+                Ok(new_config_text) => new_config_text,
+                Err(error) => {
+                    eprint!(
+                        "Can not serialize processed config from file at path {}: {}",
+                        config_path.display(),
+                        error
+                    );
+                    continue;
+                }
+            };
+            match fs::write(&config_path, new_config_text) {
+                Ok(()) => {}
+                Err(error) => {
+                    eprint!(
+                        "Can not write processed config from file at path {}: {}",
+                        config_path.display(),
+                        error
+                    );
+                    continue;
+                }
+            };
             println!("Processed config from {}", config_path.display());
             let new_last_processed_time = SystemTime::now();
             config_path_to_last_processed_time
