@@ -5,10 +5,7 @@ edition = "2024"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-serde_yaml = "0.9"
+serde-saphyr = { git = "https://github.com/bourumir-wyngs/serde-saphyr" }
 serde_json = "1.0"
 regex = "1.12.2"
 dirs = "6.0"
-hyper = { version = "0.14", features = ["full"] }
-hyper-tls = "0.6"
-tokio = { version = "1", features = ["full"] }

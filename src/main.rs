@@ -1,4 +1,4 @@
-use hyper::{Client, Uri};
+mod http;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
@@ -7,7 +7,6 @@ use std::path::PathBuf;
 use std::process::exit;
 use std::thread::sleep;
 use std::time::{Duration, SystemTime};
-use tokio::runtime::Runtime;
 
 #[derive(Debug, Clone)]
 struct Message {
@@ -65,67 +64,50 @@ struct Chat {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Config {
-    address: String,
+    host: String,
+    port: u16,
     wipe: Vec<String>,
     chat: Chat,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-struct Response {
-    message: Message,
+struct ResponseMessage {
+    role: String,
+    content: String,
 }
 
-fn process_config(config: &Config) -> Result<Config, String> {
+#[derive(Debug, Clone, Deserialize)]
+struct Response {
+    message: ResponseMessage,
+}
+
+fn process_config(config: &Config, client: &http::Client) -> Result<Config, String> {
     let request_body = serde_json::to_string(&config.chat)
         .map_err(|error| format!("Can not form request body: {}", error))?;
-    dbg!(&request_body);
 
-    let async_runtime =
-        Runtime::new().map_err(|error| format!("Can not create async runtime: {}", error))?;
-    let response_body = async_runtime.block_on(async {
-        let client = Client::new();
+    let response = client.send_request(
+        "POST",
+        config.host.as_str(),
+        config.port,
+        "/api/chat",
+        request_body.as_str(),
+    )?;
+    dbg!(&response);
 
-        let uri = format!("http://{}/api/chat", config.address)
-            .as_str()
-            .parse::<Uri>()
-            .map_err(|error| format!("Can not form correct URI: {}", error))?;
-        let request = hyper::Request::builder()
-            .method(hyper::Method::POST)
-            .uri(uri)
-            .header("Content-Type", "application/json")
-            .body(hyper::Body::from(request_body))
-            .map_err(|error| format!("Can not attach body: {}", error))?;
-
-        let response = client
-            .request(request)
-            .await
-            .map_err(|error| format!("Can not send request: {}", error))?;
-        let status = response.status();
-        if !status.is_success() {
-            return Err(format!("Invalid response status code: {}", status));
-        }
-
-        let response_body = hyper::body::to_bytes(response.into_body())
-            .await
-            .map_err(|error| format!("Can not get body of response: {}", error))?;
-        let response_body_text = String::from_utf8(response_body.to_vec())
-            .map_err(|error| format!("Can not parse body of response as UTF-8 text: {}", error))?;
-        Ok(response_body_text)
-    })?;
-
-    dbg!(&response_body);
-    let parsed_response: Response = serde_json::from_str(response_body.as_str())
-        .map_err(|error| format!("Can not parse response body {:?}: {}", response_body, error))?;
-    let mut new_message = parsed_response.message;
+    let parsed_response: Response = serde_json::from_str(response.body.as_str())
+        .map_err(|error| format!("Can not parse response body {:?}: {}", response.body, error))?;
+    let mut new_message = Message {
+        role: parsed_response.message.role,
+        content: parsed_response.message.content,
+    };
     for tag in &config.wipe {
-        let pattern = Regex::new(format!(r"\n*<#{tag}>(?:.|\n)*?<\/#{tag}>\n*").as_str()).map_err(
-            |error| {
+        let pattern =
+            Regex::new(format!(r"\n*<{tag}>(?:.|\n)*?<\/{tag}>\n*").as_str()).map_err(|error| {
                 format!(
                     "Can not form pattern for wiping tag from new message: {}",
                     error
                 )
-            },
-        )?;
+            })?;
         new_message.content = pattern.replace_all(&new_message.content, "").into_owned();
     }
     let mut new_config = config.clone();
@@ -146,6 +128,13 @@ fn main() {
         "Watching files with 'yml' extension in directory {}",
         watch_directory.display()
     );
+
+    let client = http::Client {
+        response_status_line_regex: Regex::new(r"^HTTP\/(\d\.\d)\s+(\d{3})\s+(.*)$")
+            .expect("Invalid regular expression for HTTP response first line"),
+        response_header_line_regex: Regex::new(r"^([A-Za-z0-9-]+):\s*(.*)$")
+            .expect("Invalid regular expression for HTTP response header line"),
+    };
 
     let mut config_path_to_last_processed_time: HashMap<PathBuf, SystemTime> = HashMap::new();
 
@@ -219,7 +208,7 @@ fn main() {
                     continue;
                 }
             };
-            let mut config: Config = match serde_yaml::from_str(config_text.as_str()) {
+            let mut config: Config = match serde_saphyr::from_str(config_text.as_str()) {
                 Ok(config) => config,
                 Err(error) => {
                     eprint!(
@@ -244,7 +233,7 @@ fn main() {
             last_message.content = stripped_last_message_content.to_string();
             config.chat.messages.push(last_message);
             println!("Processing config from {}...", config_path.display());
-            let new_config = match process_config(&config) {
+            let new_config = match process_config(&config, &client) {
                 Ok(new_config) => new_config,
                 Err(error) => {
                     eprint!(
@@ -262,7 +251,7 @@ fn main() {
                     continue;
                 }
             };
-            let new_config_text = match serde_yaml::to_string(&new_config) {
+            let new_config_text = match serde_saphyr::to_string(&new_config) {
                 Ok(new_config_text) => new_config_text,
                 Err(error) => {
                     eprint!(
