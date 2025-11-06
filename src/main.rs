@@ -1,3 +1,4 @@
+use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 use std::fs;
@@ -62,8 +63,41 @@ struct Config {
     chat: Chat,
 }
 
-fn process_config(config: &Config) -> Config {
-    config.clone()
+fn process_config(config: &Config) -> Result<Config, String> {
+    let request_body = serde_json::to_string(&config.chat)
+        .map_err(|error| format!("Can not form request body: {}", error))?;
+    dbg!(&request_body);
+    let response = attohttpc::post(format!("http://{}/api/chat", config.address).as_str())
+        .header("Content-Type", "text/json")
+        .text(request_body)
+        .send()
+        .map_err(|error| format!("Can not send request: {}", error))?;
+    if !response.is_success() {
+        return Err(format!(
+            "Invalid response status code: {}",
+            response.status()
+        ));
+    }
+    let response_body = response
+        .text()
+        .map_err(|error| format!("Can not get body of response: {}", error))?;
+    dbg!(&response_body);
+    let mut new_message: Message = serde_json::from_str(response_body.as_str())
+        .map_err(|error| format!("Can not parse response body {:?}: {}", response_body, error))?;
+    for tag in &config.wipe {
+        let pattern = Regex::new(format!(r"\n*<#{tag}>(?:.|\n)*?<\/#{tag}>\n*").as_str()).map_err(
+            |error| {
+                format!(
+                    "Can not form pattern for wiping tag from new message: {}",
+                    error
+                )
+            },
+        )?;
+        new_message.content = pattern.replace_all(&new_message.content, "").into_owned();
+    }
+    let mut new_config = config.clone();
+    new_config.chat.messages.push(new_message);
+    Ok(new_config)
 }
 
 fn main() {
@@ -152,7 +186,7 @@ fn main() {
                     continue;
                 }
             };
-            let config: Config = match serde_yaml::from_str(config_text.as_str()) {
+            let mut config: Config = match serde_yaml::from_str(config_text.as_str()) {
                 Ok(config) => config,
                 Err(error) => {
                     eprint!(
@@ -163,15 +197,31 @@ fn main() {
                     continue;
                 }
             };
-            let last_message = match config.chat.messages.last() {
+            let mut last_message = match config.chat.messages.pop() {
                 Some(last_message) => last_message,
                 None => continue,
             };
-            if !(last_message.role == "user" && last_message.content.ends_with("//")) {
+            if last_message.role != "user" {
                 continue;
             }
+            let stripped_last_message_content = match last_message.content.strip_suffix("//") {
+                Some(stripped_last_message_content) => stripped_last_message_content,
+                None => continue,
+            };
+            last_message.content = stripped_last_message_content.to_string();
+            config.chat.messages.push(last_message);
             println!("Processing config from {}...", config_path.display());
-            let new_config = process_config(&config);
+            let new_config = match process_config(&config) {
+                Ok(new_config) => new_config,
+                Err(error) => {
+                    eprint!(
+                        "Can not process config from file at path {}: {}",
+                        config_path.display(),
+                        error
+                    );
+                    continue;
+                }
+            };
             let new_config_text = match serde_yaml::to_string(&new_config) {
                 Ok(new_config_text) => new_config_text,
                 Err(error) => {
