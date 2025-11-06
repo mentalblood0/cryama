@@ -54,6 +54,11 @@ struct Options {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Chat {
     model: String,
+
+    #[serde(skip_deserializing)]
+    #[serde(default)]
+    stream: bool,
+
     options: Option<Options>,
     messages: Vec<Message>,
 }
@@ -63,6 +68,11 @@ struct Config {
     address: String,
     wipe: Vec<String>,
     chat: Chat,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct Response {
+    message: Message,
 }
 
 fn process_config(config: &Config) -> Result<Config, String> {
@@ -104,8 +114,9 @@ fn process_config(config: &Config) -> Result<Config, String> {
     })?;
 
     dbg!(&response_body);
-    let mut new_message: Message = serde_json::from_str(response_body.as_str())
+    let parsed_response: Response = serde_json::from_str(response_body.as_str())
         .map_err(|error| format!("Can not parse response body {:?}: {}", response_body, error))?;
+    let mut new_message = parsed_response.message;
     for tag in &config.wipe {
         let pattern = Regex::new(format!(r"\n*<#{tag}>(?:.|\n)*?<\/#{tag}>\n*").as_str()).map_err(
             |error| {
