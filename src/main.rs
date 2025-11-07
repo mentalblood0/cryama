@@ -23,15 +23,9 @@ impl<'de> Deserialize<'de> for Message {
         D: Deserializer<'de>,
     {
         let map = HashMap::<String, String>::deserialize(deserializer)?;
-
-        let (role, content) = match map.into_iter().next() {
-            Some((role, content)) => (role, content),
-            None => {
-                return Err(serde::de::Error::custom(
-                    "Message must have exactly one key-value pair",
-                ));
-            }
-        };
+        let (role, content) = map.into_iter().next().ok_or(serde::de::Error::custom(
+            "Message must have exactly one key-value pair",
+        ))?;
         Ok(Message { role, content })
     }
 }

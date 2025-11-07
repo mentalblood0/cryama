@@ -39,42 +39,27 @@ impl Client {
         reader: &mut BufReader<R>,
     ) -> Result<HttpResponseStatusLine, String> {
         let line = read_line!(reader);
-        match self.response_status_line_regex.captures(line.as_str()) {
-            Some(captures) => Ok(HttpResponseStatusLine {
-                version: match captures.get(1) {
-                    Some(version) => version.as_str().to_string(),
-                    None => {
-                        return Err(format!(
-                            "Can not get version from response parsed status line {line}"
-                        ));
-                    }
-                },
-                status_code: match captures.get(2) {
-                    Some(status_code) => match status_code.as_str().to_string().parse::<u16>() {
-                        Ok(status_code) => status_code,
-                        Err(error) => {
-                            return Err(format!(
+        let captures = self
+            .response_status_line_regex
+            .captures(line.as_str())
+            .ok_or(format!("Can not parse response status line {line}"))?;
+        Ok(HttpResponseStatusLine {
+                version: captures
+                    .get(1)
+                    .ok_or(format!(
+                        "Can not get version from response parsed status line {line}"
+                    ))?
+                    .as_str()
+                    .to_string(),
+                status_code: captures.get(2).ok_or(format!(
+                                "Can not get status code from response parsed status line {line}"
+                            ))?.as_str().to_string().parse::<u16>().map_err(|error| format!(
                                 "Can not parse status code from response parsed status line {line} to number: {error}"
-                            ));
-                        }
-                    },
-                    None => {
-                        return Err(format!(
-                            "Can not get status code from response parsed status line {line}"
-                        ));
-                    }
-                },
-                status_message: match captures.get(3) {
-                    Some(status_message) => status_message.as_str().to_string(),
-                    None => {
-                        return Err(format!(
+                            ))? ,
+                status_message: captures.get(3).ok_or(format!(
                             "Can not get status message from response parsed status line {line}"
-                        ));
-                    }
-                },
-            }),
-            None => Err(format!("Can not parse response status line {line}")),
-        }
+                        ))?.as_str().to_string()
+            })
     }
     fn read_response_headers<R: Read>(
         &self,
@@ -85,23 +70,22 @@ impl Client {
         loop {
             let line = read_line!(reader);
             if let Some(captures) = self.response_header_line_regex.captures(line.as_str()) {
-                let key = match captures.get(1) {
-                    Some(version) => version,
-                    None => {
-                        return Err(format!(
+                result.insert(
+                    captures
+                        .get(1)
+                        .ok_or(format!(
                             "Can not get key from response parsed header line {line}"
-                        ));
-                    }
-                };
-                let value = match captures.get(2) {
-                    Some(version) => version,
-                    None => {
-                        return Err(format!(
+                        ))?
+                        .as_str()
+                        .to_string(),
+                    captures
+                        .get(2)
+                        .ok_or(format!(
                             "Can not get value from response parsed header line {line}"
-                        ));
-                    }
-                };
-                result.insert(key.as_str().to_string(), value.as_str().to_string());
+                        ))?
+                        .as_str()
+                        .to_string(),
+                );
             } else {
                 break;
             }
@@ -174,19 +158,19 @@ impl Client {
         let body = match headers.get("Content-Length") {
             Some(content_length_string) => {
                 let content_length = content_length_string.parse::<usize>().map_err(|error| {
-                        format!("Can not parse Content-Length value {content_length_string}: {error}")
-                    })?;
-                    self.read_response_fixed_body(&mut reader, content_length)?
+                    format!("Can not parse Content-Length value {content_length_string}: {error}")
+                })?;
+                self.read_response_fixed_body(&mut reader, content_length)?
             }
             None => {
-                match headers.get("Transfer-Encoding") {
-                    Some(transfer_encoding) => {
-                        match transfer_encoding.as_str() {
-                            "chunked" => self.read_response_chunked_body(&mut reader)?,
-                            _ => return Err(format!("Can not read response content because Content-Length line not found and transfer encoding {transfer_encoding} is not supported"))
-                        }
+                let transfer_encoding =  headers.get("Transfer-Encoding").ok_or("Can not read response content because Content-Length line not found and Transfer-Encoding is also not stated")?.as_str();
+                match transfer_encoding {
+                    "chunked" => self.read_response_chunked_body(&mut reader)?,
+                    _ => {
+                        return Err(format!(
+                            "Can not read response content because Content-Length line not found and transfer encoding {transfer_encoding} is not supported"
+                        ));
                     }
-                    None => return Err("Can not read response content because Content-Length line not found and Transfer-Encoding is also not stated".to_string())
                 }
             }
         };
