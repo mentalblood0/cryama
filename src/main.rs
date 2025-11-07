@@ -1,12 +1,15 @@
-mod http;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 use std::fs;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::exit;
 use std::thread::sleep;
 use std::time::{Duration, SystemTime};
+
+mod http;
 
 #[derive(Debug, Clone)]
 struct Message {
@@ -66,12 +69,6 @@ struct Config {
     chat: Chat,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-struct ResponseMessage {
-    role: String,
-    content: String,
-}
-
 #[derive(Debug, Clone, Serialize)]
 struct RequestMessage {
     role: String,
@@ -108,11 +105,16 @@ impl From<&Chat> for Request {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+struct ResponseMessage {
+    content: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 struct Response {
     message: ResponseMessage,
 }
 
-fn process_config(config: &Config, client: &http::Client) -> Result<Config, String> {
+fn process_config(config: &Config, client: &http::Client) -> Result<String, String> {
     let request = Request::from(&config.chat);
     let request_body = serde_json::to_string(&request)
         .map_err(|error| format!("Can not form request body: {error}"))?;
@@ -128,10 +130,7 @@ fn process_config(config: &Config, client: &http::Client) -> Result<Config, Stri
     let parsed_response: Response = serde_json::from_slice(&response.body)
         .map_err(|error| format!("Can not parse response body {:?}: {error}", response.body))?;
 
-    let mut new_message = Message {
-        role: parsed_response.message.role,
-        content: parsed_response.message.content,
-    };
+    let mut new_message_content = parsed_response.message.content;
     for tag in &config.wipe {
         let escaped_tag = regex::escape(tag);
         let pattern =
@@ -139,12 +138,9 @@ fn process_config(config: &Config, client: &http::Client) -> Result<Config, Stri
                 .map_err(|error| {
                     format!("Can not form pattern for wiping tag from new message: {error}")
                 })?;
-        new_message.content = pattern.replace_all(&new_message.content, "").into_owned();
+        new_message_content = pattern.replace_all(&new_message_content, "").into_owned();
     }
-
-    let mut new_config = config.clone();
-    new_config.chat.messages.push(new_message);
-    Ok(new_config)
+    Ok(new_message_content)
 }
 
 fn main() {
@@ -259,8 +255,9 @@ fn main() {
             };
             last_message.content = stripped_last_message_content.to_string();
             config.chat.messages.push(last_message);
+
             println!("Processing config from {}...", config_path.display());
-            let new_config = match process_config(&config, &client) {
+            let new_message_content = match process_config(&config, &client) {
                 Ok(new_config) => new_config,
                 Err(error) => {
                     eprintln!(
@@ -277,17 +274,25 @@ fn main() {
                     continue;
                 }
             };
-            let new_config_text = match serde_saphyr::to_string(&new_config) {
-                Ok(new_config_text) => new_config_text,
+            let additional_config_text = format!(
+                "    - assistant: |-\n        {}",
+                new_message_content.replace("\n", "\n        ")
+            );
+            let mut config_file = match OpenOptions::new()
+                .append(true)
+                .create(true)
+                .open(&config_path)
+            {
+                Ok(file) => file,
                 Err(error) => {
                     eprintln!(
-                        "Can not serialize processed config from file at path {}: {error}",
-                        config_path.display(),
+                        "Can not open config file for write at path {}: {error}",
+                        config_path.display()
                     );
                     continue;
                 }
             };
-            match fs::write(&config_path, new_config_text) {
+            match config_file.write_all(additional_config_text.as_bytes()) {
                 Ok(()) => {}
                 Err(error) => {
                     eprintln!(
@@ -298,6 +303,7 @@ fn main() {
                 }
             };
             println!("Processed config from {}", config_path.display());
+
             let new_last_processed_time = SystemTime::now();
             config_path_to_last_processed_time
                 .entry(config_path)
