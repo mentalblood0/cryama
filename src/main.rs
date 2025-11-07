@@ -83,7 +83,7 @@ struct Response {
 
 fn process_config(config: &Config, client: &http::Client) -> Result<Config, String> {
     let request_body = serde_json::to_string(&config.chat)
-        .map_err(|error| format!("Can not form request body: {}", error))?;
+        .map_err(|error| format!("Can not form request body: {error}"))?;
 
     let response = client.send_request(
         "POST",
@@ -93,10 +93,9 @@ fn process_config(config: &Config, client: &http::Client) -> Result<Config, Stri
         "application/json",
         request_body.as_str(),
     )?;
-    dbg!(&response);
+    let parsed_response: Response = serde_json::from_slice(&response.body)
+        .map_err(|error| format!("Can not parse response body {:?}: {error}", response.body))?;
 
-    let parsed_response: Response = serde_json::from_str(response.body.as_str())
-        .map_err(|error| format!("Can not parse response body {:?}: {}", response.body, error))?;
     let mut new_message = Message {
         role: parsed_response.message.role,
         content: parsed_response.message.content,
@@ -106,13 +105,11 @@ fn process_config(config: &Config, client: &http::Client) -> Result<Config, Stri
         let pattern =
             Regex::new(format!(r"\n*<{escaped_tag}>(?:.|\n)*?<\/{escaped_tag}>\n*").as_str())
                 .map_err(|error| {
-                    format!(
-                        "Can not form pattern for wiping tag from new message: {}",
-                        error
-                    )
+                    format!("Can not form pattern for wiping tag from new message: {error}")
                 })?;
         new_message.content = pattern.replace_all(&new_message.content, "").into_owned();
     }
+
     let mut new_config = config.clone();
     new_config.chat.messages.push(new_message);
     Ok(new_config)
@@ -146,9 +143,8 @@ fn main() {
             Ok(directory_iterator) => directory_iterator,
             Err(error) => {
                 eprint!(
-                    "Can not read directory {}: {}",
+                    "Can not read directory {}: {error}",
                     watch_directory.display(),
-                    error
                 );
                 continue;
             }
@@ -178,9 +174,8 @@ fn main() {
                     Ok(metadata) => metadata,
                     Err(error) => {
                         eprint!(
-                            "Can not get metadata for file at path {}: {}",
+                            "Can not get metadata for file at path {}: {error}",
                             config_path.display(),
-                            error
                         );
                         continue;
                     }
@@ -189,9 +184,8 @@ fn main() {
                     Ok(last_modification_time) => last_modification_time,
                     Err(error) => {
                         eprint!(
-                            "Can not get last modification time for file at path {}: {}",
+                            "Can not get last modification time for file at path {}: {error}",
                             config_path.display(),
-                            error
                         );
                         continue;
                     }
@@ -204,9 +198,8 @@ fn main() {
                 Ok(config_text) => config_text,
                 Err(error) => {
                     eprint!(
-                        "Can not read file at path {}: {}",
+                        "Can not read file at path {}: {error}",
                         config_path.display(),
-                        error
                     );
                     continue;
                 }
@@ -215,9 +208,8 @@ fn main() {
                 Ok(config) => config,
                 Err(error) => {
                     eprint!(
-                        "Can not parse Config from file at path {}: {}",
+                        "Can not parse Config from file at path {}: {error}",
                         config_path.display(),
-                        error
                     );
                     continue;
                 }
@@ -240,9 +232,8 @@ fn main() {
                 Ok(new_config) => new_config,
                 Err(error) => {
                     eprint!(
-                        "Can not process config from file at path {}: {}",
+                        "Can not process config from file at path {}: {error}",
                         config_path.display(),
-                        error
                     );
                     let new_last_processed_time = SystemTime::now();
                     config_path_to_last_processed_time
@@ -258,9 +249,8 @@ fn main() {
                 Ok(new_config_text) => new_config_text,
                 Err(error) => {
                     eprint!(
-                        "Can not serialize processed config from file at path {}: {}",
+                        "Can not serialize processed config from file at path {}: {error}",
                         config_path.display(),
-                        error
                     );
                     continue;
                 }
@@ -269,9 +259,8 @@ fn main() {
                 Ok(()) => {}
                 Err(error) => {
                     eprint!(
-                        "Can not write processed config from file at path {}: {}",
+                        "Can not write processed config from file at path {}: {error}",
                         config_path.display(),
-                        error
                     );
                     continue;
                 }
