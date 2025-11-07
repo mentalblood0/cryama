@@ -61,6 +61,7 @@ struct Chat {
 struct Config {
     host: String,
     port: u16,
+    #[serde(default)]
     wipe: Vec<String>,
     chat: Chat,
 }
@@ -72,11 +73,17 @@ struct ResponseMessage {
 }
 
 #[derive(Debug, Clone, Serialize)]
+struct RequestMessage {
+    role: String,
+    content: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
 struct Request {
     model: String,
     stream: bool,
     options: Option<Options>,
-    messages: Vec<Message>,
+    messages: Vec<RequestMessage>,
 }
 
 impl From<&Chat> for Request {
@@ -85,7 +92,17 @@ impl From<&Chat> for Request {
             model: chat.model.clone(),
             stream: false,
             options: chat.options.clone(),
-            messages: chat.messages.clone(),
+            messages: {
+                let mut result: Vec<RequestMessage> = Vec::new();
+                for message in &chat.messages {
+                    let request_message = RequestMessage {
+                        role: message.role.clone(),
+                        content: message.content.clone(),
+                    };
+                    result.push(request_message);
+                }
+                result
+            },
         }
     }
 }
@@ -134,7 +151,7 @@ fn main() {
     let configs_directory = match dirs::config_dir() {
         Some(configs_directory) => configs_directory,
         None => {
-            eprint!("Can not find configs directory");
+            eprintln!("Can not find configs directory");
             exit(1);
         }
     };
@@ -157,7 +174,7 @@ fn main() {
         let directory_iterator = match fs::read_dir(&watch_directory) {
             Ok(directory_iterator) => directory_iterator,
             Err(error) => {
-                eprint!(
+                eprintln!(
                     "Can not read directory {}: {error}",
                     watch_directory.display(),
                 );
@@ -168,7 +185,7 @@ fn main() {
             let entry = match entry_result {
                 Ok(entry) => entry,
                 Err(error) => {
-                    eprint!("Can not read directory entry: {error}");
+                    eprintln!("Can not read directory entry: {error}");
                     continue;
                 }
             };
@@ -188,7 +205,7 @@ fn main() {
                 let metadata = match fs::metadata(&config_path) {
                     Ok(metadata) => metadata,
                     Err(error) => {
-                        eprint!(
+                        eprintln!(
                             "Can not get metadata for file at path {}: {error}",
                             config_path.display(),
                         );
@@ -198,7 +215,7 @@ fn main() {
                 let last_modification_time = match metadata.modified() {
                     Ok(last_modification_time) => last_modification_time,
                     Err(error) => {
-                        eprint!(
+                        eprintln!(
                             "Can not get last modification time for file at path {}: {error}",
                             config_path.display(),
                         );
@@ -212,7 +229,7 @@ fn main() {
             let config_text = match fs::read_to_string(&config_path) {
                 Ok(config_text) => config_text,
                 Err(error) => {
-                    eprint!(
+                    eprintln!(
                         "Can not read file at path {}: {error}",
                         config_path.display(),
                     );
@@ -222,7 +239,7 @@ fn main() {
             let mut config: Config = match serde_saphyr::from_str(config_text.as_str()) {
                 Ok(config) => config,
                 Err(error) => {
-                    eprint!(
+                    eprintln!(
                         "Can not parse Config from file at path {}: {error}",
                         config_path.display(),
                     );
@@ -246,7 +263,7 @@ fn main() {
             let new_config = match process_config(&config, &client) {
                 Ok(new_config) => new_config,
                 Err(error) => {
-                    eprint!(
+                    eprintln!(
                         "Can not process config from file at path {}: {error}",
                         config_path.display(),
                     );
@@ -263,7 +280,7 @@ fn main() {
             let new_config_text = match serde_saphyr::to_string(&new_config) {
                 Ok(new_config_text) => new_config_text,
                 Err(error) => {
-                    eprint!(
+                    eprintln!(
                         "Can not serialize processed config from file at path {}: {error}",
                         config_path.display(),
                     );
@@ -273,7 +290,7 @@ fn main() {
             match fs::write(&config_path, new_config_text) {
                 Ok(()) => {}
                 Err(error) => {
-                    eprint!(
+                    eprintln!(
                         "Can not write processed config from file at path {}: {error}",
                         config_path.display(),
                     );

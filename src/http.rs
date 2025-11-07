@@ -121,7 +121,6 @@ impl Client {
         &self,
         reader: &mut BufReader<R>,
     ) -> Result<Vec<u8>, String> {
-        println!("chunked");
         let mut result: Vec<u8> = Vec::new();
         loop {
             let size_line = read_line!(reader);
@@ -137,7 +136,6 @@ impl Client {
                     format!("Can not read response chunk of stated size {chunk_size}: {error}")
                 })?;
                 result.extend_from_slice(&chunk);
-                println!("read chunk of size {chunk_size}");
             }
             let mut line_break = vec![0u8; 2];
             reader.read_exact(&mut line_break).map_err(|error| {
