@@ -28,9 +28,7 @@ macro_rules! read_line {
         $reader
             .read_line(&mut line)
             .map_err(|error| format!("Can not read line of response: {error}"))?;
-        dbg!(&line);
         let line_trimmed = line.trim_end().to_string();
-        dbg!(&line_trimmed);
         line_trimmed
     }};
 }

@@ -53,11 +53,6 @@ struct Options {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Chat {
     model: String,
-
-    #[serde(skip_deserializing)]
-    #[serde(default)]
-    stream: bool,
-
     options: Option<Options>,
     messages: Vec<Message>,
 }
@@ -76,13 +71,33 @@ struct ResponseMessage {
     content: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+struct Request {
+    model: String,
+    stream: bool,
+    options: Option<Options>,
+    messages: Vec<Message>,
+}
+
+impl From<&Chat> for Request {
+    fn from(chat: &Chat) -> Self {
+        Request {
+            model: chat.model.clone(),
+            stream: false,
+            options: chat.options.clone(),
+            messages: chat.messages.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 struct Response {
     message: ResponseMessage,
 }
 
 fn process_config(config: &Config, client: &http::Client) -> Result<Config, String> {
-    let request_body = serde_json::to_string(&config.chat)
+    let request = Request::from(&config.chat);
+    let request_body = serde_json::to_string(&request)
         .map_err(|error| format!("Can not form request body: {error}"))?;
 
     let response = client.send_request(
