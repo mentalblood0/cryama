@@ -17,10 +17,10 @@ chat:
   model: granite3.3:2b
   options: null
   messages:
-    - user: When it is more efficient to use B-Tree instead of binary tree?//
+    - user: When it is more efficient to use B-Tree instead of binary tree?
 ```
 
-When detect unprocessed or changed file with user message ended with '//' in the end, program will send correcponding request to ollama API and write result to the same file as received
+When detect unprocessed or changed file with user message ended with punctuation character in the end, program will send correcponding request to ollama API and write result to the same file as received
 
 Example configuration file after processing:
 
@@ -33,7 +33,7 @@ chat:
   model: granite3.3:2b
   options: null
   messages:
-    - user: When it is more efficient to use B-Tree instead of binary tree?//
+    - user: When it is more efficient to use B-Tree instead of binary tree?
     - assistant: |-
         B-Trees are more efficient than Binary Trees, particularly in scenarios involving large data sets or databases with a high degree of concurrency, due to their optimized structure and operations. Here's why:
         

@@ -232,7 +232,7 @@ fn main() {
                     continue;
                 }
             };
-            let mut config: Config = match serde_saphyr::from_str(config_text.as_str()) {
+            let config: Config = match serde_saphyr::from_str(config_text.as_str()) {
                 Ok(config) => config,
                 Err(error) => {
                     eprintln!(
@@ -242,19 +242,20 @@ fn main() {
                     continue;
                 }
             };
-            let mut last_message = match config.chat.messages.pop() {
-                Some(last_message) => last_message,
+            match config.chat.messages.last() {
+                Some(last_message) => {
+                    if !(last_message.role == "user"
+                        && last_message
+                            .content
+                            .chars()
+                            .last()
+                            .map_or(false, |c| c.is_ascii_punctuation()))
+                    {
+                        continue;
+                    }
+                }
                 None => continue,
             };
-            if last_message.role != "user" {
-                continue;
-            }
-            let stripped_last_message_content = match last_message.content.strip_suffix("//") {
-                Some(stripped_last_message_content) => stripped_last_message_content,
-                None => continue,
-            };
-            last_message.content = stripped_last_message_content.to_string();
-            config.chat.messages.push(last_message);
 
             println!("Processing config from {}...", config_path.display());
             let new_message_content = match process_config(&config, &client) {
