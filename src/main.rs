@@ -90,6 +90,7 @@ fn process_config(config: &Config, client: &http::Client) -> Result<Config, Stri
         config.host.as_str(),
         config.port,
         "/api/chat",
+        "application/json",
         request_body.as_str(),
     )?;
     dbg!(&response);
@@ -101,13 +102,15 @@ fn process_config(config: &Config, client: &http::Client) -> Result<Config, Stri
         content: parsed_response.message.content,
     };
     for tag in &config.wipe {
+        let escaped_tag = regex::escape(tag);
         let pattern =
-            Regex::new(format!(r"\n*<{tag}>(?:.|\n)*?<\/{tag}>\n*").as_str()).map_err(|error| {
-                format!(
-                    "Can not form pattern for wiping tag from new message: {}",
-                    error
-                )
-            })?;
+            Regex::new(format!(r"\n*<{escaped_tag}>(?:.|\n)*?<\/{escaped_tag}>\n*").as_str())
+                .map_err(|error| {
+                    format!(
+                        "Can not form pattern for wiping tag from new message: {}",
+                        error
+                    )
+                })?;
         new_message.content = pattern.replace_all(&new_message.content, "").into_owned();
     }
     let mut new_config = config.clone();

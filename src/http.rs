@@ -38,9 +38,9 @@ impl Client {
                 version: match captures.get(1) {
                     Some(version) => version.as_str().to_string(),
                     None => {
-                        return Err(
-                            "Can not get version from parsed status line of response".to_string()
-                        );
+                        return Err(format!(
+                            "Can not get version from response parsed status line {line}"
+                        ));
                     }
                 },
                 status_code: match captures.get(2) {
@@ -114,6 +114,7 @@ impl Client {
         host: &str,
         port: u16,
         path: &str,
+        content_type: &str,
         request_body: &str,
     ) -> Result<HttpResponse, String> {
         let mut stream =
@@ -121,15 +122,10 @@ impl Client {
                 format!("Can not connect to host {} port {}: {}", host, port, error)
             })?;
 
-        let request = [
-            format!("{} {} HTTP/1.1", method, path).as_str(),
-            format!("Host: {}", host).as_str(),
-            "Content-Type: application/json",
-            format!("Content-Length: {}", request_body.len()).as_str(),
-            "",
-            request_body,
-        ]
-        .join("\r\n");
+        let request = format!(
+            "{method} {path} HTTP/1.1\r\nHost: {host}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\n\r\n{request_body}",
+            request_body.len()
+        );
 
         stream
             .write_all(request.as_bytes())
