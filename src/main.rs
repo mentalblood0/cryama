@@ -238,7 +238,7 @@ fn main() {
             };
             match config.chat.messages.last() {
                 Some(last_message) => {
-                    if !(last_message.role == "user"
+                    if !(last_message.role != "assistant"
                         && last_message
                             .content
                             .chars()
