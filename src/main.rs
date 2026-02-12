@@ -1,5 +1,4 @@
 use regex::Regex;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 use std::fs;
 use std::fs::OpenOptions;
@@ -9,7 +8,8 @@ use std::process::exit;
 use std::thread::sleep;
 use std::time::{Duration, SystemTime};
 
-mod http;
+use anyhow::{Context, Result};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Debug, Clone)]
 struct Message {
@@ -108,30 +108,21 @@ struct Response {
     message: ResponseMessage,
 }
 
-fn process_config(config: &Config, client: &http::Client) -> Result<String, String> {
+fn process_config(config: &Config) -> Result<String> {
     let request = Request::from(&config.chat);
-    let request_body = serde_json::to_string(&request)
-        .map_err(|error| format!("Can not form request body: {error}"))?;
 
-    let response = client.send_request(
-        "POST",
-        config.host.as_str(),
-        config.port,
-        "/api/chat",
-        "application/json",
-        request_body.as_str(),
-    )?;
-    let parsed_response: Response = serde_json::from_slice(&response.body)
-        .map_err(|error| format!("Can not parse response body {:?}: {error}", response.body))?;
+    let response = ureq::post(format!("http://{}:{}/api/chat", config.host, config.port))
+        .send_json(request)?
+        .into_body()
+        .read_json::<Response>()
+        .with_context(|| format!("Can not parse response body"))?;
 
-    let mut new_message_content = parsed_response.message.content;
+    let mut new_message_content = response.message.content;
     for tag in &config.wipe {
         let escaped_tag = regex::escape(tag);
         let pattern =
             Regex::new(format!(r"\n*<{escaped_tag}>(?:.|\n)*?<\/{escaped_tag}>\n*").as_str())
-                .map_err(|error| {
-                    format!("Can not form pattern for wiping tag from new message: {error}")
-                })?;
+                .with_context(|| format!("Can not form pattern for wiping tag from new message"))?;
         new_message_content = pattern.replace_all(&new_message_content, "").into_owned();
     }
     Ok(new_message_content)
@@ -150,13 +141,6 @@ fn main() {
         "Watching files with 'yml' extension in directory {}",
         watch_directory.display()
     );
-
-    let client = http::Client {
-        response_status_line_regex: Regex::new(r"^HTTP\/(\d\.\d)\s+(\d{3})\s+(.*)$")
-            .expect("Invalid regular expression for HTTP response first line"),
-        response_header_line_regex: Regex::new(r"^([A-Za-z0-9-]+):\s*(.*)$")
-            .expect("Invalid regular expression for HTTP response header line"),
-    };
 
     let mut config_path_to_last_processed_time: HashMap<PathBuf, SystemTime> = HashMap::new();
 
@@ -252,7 +236,7 @@ fn main() {
             };
 
             println!("Processing config from {}...", config_path.display());
-            let new_message_content = match process_config(&config, &client) {
+            let new_message_content = match process_config(&config) {
                 Ok(new_config) => new_config,
                 Err(error) => {
                     eprintln!(
