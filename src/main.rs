@@ -58,8 +58,13 @@ struct Chat {
 struct Config {
     host: String,
     port: u16,
+
     #[serde(default)]
     wipe: Vec<String>,
+
+    #[serde(default)]
+    remember: Option<String>,
+
     chat: Chat,
 }
 
@@ -77,20 +82,26 @@ struct Request {
     messages: Vec<RequestMessage>,
 }
 
-impl From<&Chat> for Request {
-    fn from(chat: &Chat) -> Self {
+impl From<&Config> for Request {
+    fn from(config: &Config) -> Self {
         Request {
-            model: chat.model.clone(),
+            model: config.chat.model.clone(),
             stream: false,
-            options: chat.options.clone(),
+            options: config.chat.options.clone(),
             messages: {
                 let mut result: Vec<RequestMessage> = Vec::new();
-                for message in &chat.messages {
+                for message in &config.chat.messages {
                     let request_message = RequestMessage {
                         role: message.role.clone(),
                         content: message.content.clone(),
                     };
                     result.push(request_message);
+                }
+                if let Some(ref remember) = config.remember {
+                    result.push(RequestMessage {
+                        role: "system".to_string(),
+                        content: remember.clone(),
+                    });
                 }
                 result
             },
@@ -109,7 +120,7 @@ struct Response {
 }
 
 fn process_config(config: &Config) -> Result<String> {
-    let request = Request::from(&config.chat);
+    let request = Request::from(config);
 
     let response = ureq::post(format!("http://{}:{}/api/chat", config.host, config.port))
         .send_json(request)?

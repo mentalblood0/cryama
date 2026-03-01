@@ -29,6 +29,7 @@ host: localhost
 port: 11434
 wipe:
   - think
+remember: Be accurate
 chat:
   model: granite3.3:2b
   options: null
@@ -47,4 +48,10 @@ chat:
         
         5. **Space Efficiency**: Although both trees can store large amounts of data, B-Trees are more space-efficient due to their ability to pack multiple keys per node. This leads to reduced memory usage and improved cache utilization.
         
-        In summary, while Binary Trees have a simpler structure and are easier to understand, B-Trees offer significant performance advantages in terms of efficiency, scalability, and concurrency management for large datasets or systems requiring frequent sequential access.```
+        In summary, while Binary Trees have a simpler structure and are easier to understand, B-Trees offer significant performance advantages in terms of efficiency, scalability, and concurrency management for large datasets or systems requiring frequent sequential access.
+```
+
+### Features
+
+- `wipe` field is list of xml-like tags, program will remove text wrapped with them from assistant answers
+- `remember` field is `system` role message. Program will append it after all messages before sending them to ollama
