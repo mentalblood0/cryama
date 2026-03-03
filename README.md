@@ -1,5 +1,7 @@
 # 🪸 cryama
 
+[![tests](https://github.com/mentalblood0/cryama/actions/workflows/tests.yml/badge.svg)](https://github.com/mentalblood0/cryama/actions/workflows/tests.yml)
+
 File-based interface to ollama
 
 ## Usage
