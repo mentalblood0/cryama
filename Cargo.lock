@@ -32,9 +32,9 @@ dependencies = [
 
 [[package]]
 name = "annotate-snippets"
-version = "0.12.12"
+version = "0.12.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c86cd1c51b95d71dde52bca69ed225008f6ff4c8cc825b08042aa1ef823e1980"
+checksum = "74fc7650eedcb2fee505aad48491529e408f0e854c2d9f63eb86c1361b9b3f93"
 dependencies = [
  "anstyle",
  "memchr",
@@ -426,9 +426,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.182"
+version = "0.2.183"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6800badb6cb2082ffd7b6a67e6125bb39f18782f793520caee8cb8846be06112"
+checksum = "b5b646652bf6661599e1da8901b3b9522896f01e736bad5f723fe7a3a27f899d"
 
 [[package]]
 name = "libredox"
@@ -538,9 +538,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.44"
+version = "1.0.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21b2ebcf727b7760c461f091f9f0f539b77b8e87f2fd88131e7f1b433b3cece4"
+checksum = "41f2619966050689382d2b44f664f4bc593e129785a36d6ee376ddf37259b924"
 dependencies = [
  "proc-macro2",
 ]
@@ -649,7 +649,7 @@ checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 [[package]]
 name = "saphyr-parser-bw"
 version = "0.0.609"
-source = "git+https://github.com/bourumir-wyngs/saphyr?branch=dev%2Fsaphyr-parser#a4737f3a483422c80dce0bcf91264b7bf87ecf7f"
+source = "git+https://github.com/bourumir-wyngs/saphyr?branch=dev%2Fsaphyr-parser#6cc570b7a6a1690160732fff2d0b584a79c67215"
 dependencies = [
  "arraydeque",
  "smallvec",
@@ -669,7 +669,7 @@ dependencies = [
 [[package]]
 name = "serde-saphyr"
 version = "0.0.21"
-source = "git+https://github.com/bourumir-wyngs/serde-saphyr#5d5184501b65f3b60cb7e808ee5129fb348a58a5"
+source = "git+https://github.com/bourumir-wyngs/serde-saphyr#fe73af9cd8bb144e3c1668d9654f6ae71b50b804"
 dependencies = [
  "ahash",
  "annotate-snippets",
@@ -1105,18 +1105,18 @@ dependencies = [
 
 [[package]]
 name = "zerocopy"
-version = "0.8.40"
+version = "0.8.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a789c6e490b576db9f7e6b6d661bcc9799f7c0ac8352f56ea20193b2681532e5"
+checksum = "f2578b716f8a7a858b7f02d5bd870c14bf4ddbbcf3a4c05414ba6503640505e3"
 dependencies = [
  "zerocopy-derive",
 ]
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.8.40"
+version = "0.8.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f65c489a7071a749c849713807783f70672b28094011623e200cb86dcb835953"
+checksum = "7e6cc098ea4d3bd6246687de65af3f920c430e236bee1e3bf2e441463f08a02f"
 dependencies = [
  "proc-macro2",
  "quote",

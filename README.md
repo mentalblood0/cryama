@@ -56,4 +56,4 @@ chat:
 ### Features
 
 - `wipe` field is list of xml-like tags, program will remove text wrapped with them from assistant answers
-- `remember` field is `system` role message. Program will append it after all messages before sending them to ollama
+- `remember` field is `system` role message. Program will append it right before the last message before sending them to ollama

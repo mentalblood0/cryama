@@ -98,10 +98,13 @@ impl From<&Config> for Request {
                     result.push(request_message);
                 }
                 if let Some(ref remember) = config.remember {
-                    result.push(RequestMessage {
-                        role: "system".to_string(),
-                        content: remember.clone(),
-                    });
+                    result.insert(
+                        result.len() - 1,
+                        RequestMessage {
+                            role: "system".to_string(),
+                            content: remember.clone(),
+                        },
+                    );
                 }
                 result
             },
