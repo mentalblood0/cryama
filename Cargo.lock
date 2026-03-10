@@ -669,7 +669,7 @@ dependencies = [
 [[package]]
 name = "serde-saphyr"
 version = "0.0.21"
-source = "git+https://github.com/bourumir-wyngs/serde-saphyr#fe73af9cd8bb144e3c1668d9654f6ae71b50b804"
+source = "git+https://github.com/bourumir-wyngs/serde-saphyr#dbeaab10a3ac950c65c713c8a6d621bc80b96b3a"
 dependencies = [
  "ahash",
  "annotate-snippets",
