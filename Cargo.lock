@@ -648,8 +648,8 @@ checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 
 [[package]]
 name = "saphyr-parser-bw"
-version = "0.0.609"
-source = "git+https://github.com/bourumir-wyngs/saphyr?branch=dev%2Fsaphyr-parser#6cc570b7a6a1690160732fff2d0b584a79c67215"
+version = "0.0.610"
+source = "git+https://github.com/bourumir-wyngs/saphyr?branch=dev%2Fsaphyr-parser#a4aa4eb2f092950926e96cd518cd9c57c36acdd5"
 dependencies = [
  "arraydeque",
  "smallvec",
@@ -669,7 +669,7 @@ dependencies = [
 [[package]]
 name = "serde-saphyr"
 version = "0.0.21"
-source = "git+https://github.com/bourumir-wyngs/serde-saphyr#dbeaab10a3ac950c65c713c8a6d621bc80b96b3a"
+source = "git+https://github.com/bourumir-wyngs/serde-saphyr#0ac01e5d140fedf87534a59c2f9a95844d1e86bf"
 dependencies = [
  "ahash",
  "annotate-snippets",
