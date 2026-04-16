@@ -1,6 +1,6 @@
 # 🪸 cryama
 
-[![tests](https://github.com/mentalblood0/cryama/actions/workflows/tests.yml/badge.svg)](https://github.com/mentalblood0/cryama/actions/workflows/tests.yml)
+[![build](https://github.com/mentalblood0/cryama/actions/workflows/build.yml/badge.svg)](https://github.com/mentalblood0/cryama/actions/workflows/build.yml)
 
 File-based interface to ollama
 
@@ -15,6 +15,7 @@ host: localhost
 port: 11434
 wipe:
   - think
+remember: Be accurate
 chat:
   model: granite3.3:2b
   options: null
@@ -56,4 +57,4 @@ chat:
 ### Features
 
 - `wipe` field is list of xml-like tags, program will remove text wrapped with them from assistant answers
-- `remember` field is `system` role message. Program will append it right before the last message before sending them to ollama
+- `remember` field is a string the program will append at the end of the last message before sending messages to ollama
