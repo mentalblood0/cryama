@@ -671,7 +671,7 @@ dependencies = [
 [[package]]
 name = "serde-saphyr"
 version = "0.0.23"
-source = "git+https://github.com/bourumir-wyngs/serde-saphyr#85e5a0e8887bfdbf53f79ca69049b02bad56f989"
+source = "git+https://github.com/bourumir-wyngs/serde-saphyr#a9126c3eaae78be738f5c7537525bb63e224f73f"
 dependencies = [
  "ahash",
  "annotate-snippets",
@@ -680,7 +680,6 @@ dependencies = [
  "getrandom 0.3.4",
  "nohash-hasher",
  "num-traits",
- "regex",
  "saphyr-parser-bw",
  "serde",
  "smallvec",
