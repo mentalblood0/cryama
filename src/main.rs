@@ -283,7 +283,7 @@ fn main() {
                 }
             };
             let additional_config_text = format!(
-                "    - assistant: |-\n        {}",
+                "    - assistant: |-\n        {}\n",
                 new_message_content.replace("\n", "\n        ")
             );
             let mut config_file = match OpenOptions::new()
