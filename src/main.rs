@@ -144,6 +144,10 @@ fn process_config(config: Config) -> Result<String> {
         }
         if let Some(rewrite_target) = rewrite_targets_iterator.next() {
             request.messages.push(RequestMessage {
+                role: "assistant".to_string(),
+                content: new_message_content,
+            });
+            request.messages.push(RequestMessage {
                 role: "user".to_string(),
                 content: format!("Rewrite your last message {rewrite_target}"),
             });
