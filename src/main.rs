@@ -65,6 +65,9 @@ struct Config {
     #[serde(default)]
     remember: Option<String>,
 
+    #[serde(default)]
+    rewrite: Vec<String>,
+
     chat: Chat,
 }
 
@@ -82,33 +85,6 @@ struct Request {
     messages: Vec<RequestMessage>,
 }
 
-impl From<&Config> for Request {
-    fn from(config: &Config) -> Self {
-        Request {
-            model: config.chat.model.clone(),
-            stream: false,
-            options: config.chat.options.clone(),
-            messages: {
-                let mut result: Vec<RequestMessage> = Vec::new();
-                for message in &config.chat.messages {
-                    let request_message = RequestMessage {
-                        role: message.role.clone(),
-                        content: message.content.clone(),
-                    };
-                    result.push(request_message);
-                }
-                if let Some(ref remember) = config.remember {
-                    if let Some(last) = result.last_mut() {
-                        last.content.push(' ');
-                        last.content.push_str(remember);
-                    }
-                }
-                result
-            },
-        }
-    }
-}
-
 #[derive(Debug, Clone, Deserialize)]
 struct ResponseMessage {
     content: String,
@@ -119,24 +95,62 @@ struct Response {
     message: ResponseMessage,
 }
 
-fn process_config(config: &Config) -> Result<String> {
-    let request = Request::from(config);
+fn process_config(config: Config) -> Result<String> {
+    let mut request = Request {
+        model: config.chat.model.clone(),
+        stream: false,
+        options: config.chat.options.clone(),
+        messages: {
+            let mut result: Vec<RequestMessage> = Vec::new();
+            for message in &config.chat.messages {
+                let request_message = RequestMessage {
+                    role: message.role.clone(),
+                    content: message.content.clone(),
+                };
+                result.push(request_message);
+            }
+            if let Some(ref remember) = config.remember {
+                if let Some(last) = result.last_mut() {
+                    last.content.push(' ');
+                    last.content.push_str(remember);
+                }
+            }
+            result
+        },
+    };
 
-    let response = ureq::post(format!("http://{}:{}/api/chat", config.host, config.port))
-        .send_json(request)?
-        .into_body()
-        .read_json::<Response>()
-        .with_context(|| format!("Can not parse response body"))?;
-
-    let mut new_message_content = response.message.content;
-    for tag in &config.wipe {
-        let escaped_tag = regex::escape(tag);
-        let pattern =
-            Regex::new(format!(r"\n*<{escaped_tag}>(?:.|\n)*?<\/{escaped_tag}>\n*").as_str())
-                .with_context(|| format!("Can not form pattern for wiping tag from new message"))?;
-        new_message_content = pattern.replace_all(&new_message_content, "").into_owned();
+    let mut rewrite_targets_iterator = config.rewrite.iter();
+    let mut some_rewrites_done = false;
+    loop {
+        let response = ureq::post(format!("http://{}:{}/api/chat", config.host, config.port))
+            .send_json(&request)?
+            .into_body()
+            .read_json::<Response>()
+            .with_context(|| format!("Can not parse response body"))?;
+        let mut new_message_content = response.message.content;
+        for tag in &config.wipe {
+            let escaped_tag = regex::escape(tag);
+            let pattern = Regex::new(
+                format!(r"\n*<{escaped_tag}>(?:.|\n)*?<\/{escaped_tag}>\n*").as_str(),
+            )
+            .with_context(|| format!("Can not form pattern for wiping tag from new message"))?;
+            new_message_content = pattern.replace_all(&new_message_content, "").into_owned();
+        }
+        if some_rewrites_done {
+            request.messages.remove(request.messages.len() - 2); // assistant's message (previous edition)
+            request.messages.remove(request.messages.len() - 2); // user's message with rewrite target
+        } else {
+            some_rewrites_done = true;
+        }
+        if let Some(rewrite_target) = rewrite_targets_iterator.next() {
+            request.messages.push(RequestMessage {
+                role: "user".to_string(),
+                content: format!("Rewrite your last message {rewrite_target}"),
+            });
+        } else {
+            return Ok(new_message_content);
+        }
     }
-    Ok(new_message_content)
 }
 
 fn main() {
@@ -247,8 +261,8 @@ fn main() {
             };
 
             println!("Processing config from {}...", config_path.display());
-            let new_message_content = match process_config(&config) {
-                Ok(new_config) => new_config,
+            let new_message_content = match process_config(config) {
+                Ok(new_message_content) => new_message_content,
                 Err(error) => {
                     eprintln!(
                         "Can not process config from file at path {}: {error}",
