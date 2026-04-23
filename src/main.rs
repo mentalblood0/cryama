@@ -136,13 +136,13 @@ fn process_config(config: Config) -> Result<String> {
             .with_context(|| format!("Can not form pattern for wiping tag from new message"))?;
             new_message_content = pattern.replace_all(&new_message_content, "").into_owned();
         }
-        if some_rewrites_done {
-            request.messages.remove(request.messages.len() - 2); // assistant's message (previous edition)
-            request.messages.remove(request.messages.len() - 2); // user's message with rewrite target
-        } else {
-            some_rewrites_done = true;
-        }
         if let Some(rewrite_target) = rewrite_targets_iterator.next() {
+            if some_rewrites_done {
+                request.messages.remove(request.messages.len() - 1); // assistant's message (previous edition)
+                request.messages.remove(request.messages.len() - 1); // user's message with rewrite target
+            } else {
+                some_rewrites_done = true;
+            }
             request.messages.push(RequestMessage {
                 role: "assistant".to_string(),
                 content: new_message_content,
