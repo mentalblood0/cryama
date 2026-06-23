@@ -21,7 +21,9 @@ rewrite:
   - simplifying
 chat:
   model: granite3.3:2b
-  options: null
+  options:
+    seed: 0
+    temperature: 1.0
   messages:
     - user: When it is more efficient to use B-Tree instead of binary tree?
 ```

@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-serde-saphyr = { git = "https://github.com/bourumir-wyngs/serde-saphyr" }
+serde-saphyr = { version = "0.0.28" }
 serde_json = "1.0"
 regex = "1.12.4"
 ureq = { version = "3.3", features = ["json"] }
